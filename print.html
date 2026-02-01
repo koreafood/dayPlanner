@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>개인 플래너 (A4 인쇄용)</title>
+<style>
+  @page { size: A4; margin: 10mm; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body { background: #f0f0f0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans KR", "Apple SD Gothic Neo", Arial, sans-serif; color: #111; }
+  .page {
+    width: 210mm;
+    height: 297mm;
+    margin: 10mm auto;
+    background: #fff;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr 1fr;
+    gap: 6mm;
+    position: relative;
+    padding: 6mm;
+  }
+  @media print {
+    body { background: #fff; }
+    .page { margin: 0; box-shadow: none; }
+  }
+  .section {
+    border: 1px solid #222;
+    padding: 4mm;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+  .section h2 {
+    margin: 0 0 3mm;
+    font-size: 14pt;
+    text-align: center;
+    letter-spacing: -0.2px;
+  }
+
+  .calendar {
+    display: grid;
+    grid-template-rows: auto auto 1fr;
+    gap: 2mm;
+    min-height: 0;
+  }
+  .calendar.compact .cal-header { font-size: 10pt; }
+  .calendar.compact .cal-weekdays div { font-size: 8pt; }
+  .calendar.compact .cal-grid div { min-height: 8mm; font-size: 8pt; }
+  .calendar-pair {
+    display: flex;
+    flex-direction: column;
+    gap: 3mm;
+    align-items: stretch;
+  }
+  .cal-header {
+    text-align: center;
+    font-size: 12pt;
+    font-weight: 600;
+  }
+  .cal-weekdays, .cal-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 1mm;
+  }
+  .cal-weekdays div {
+    text-align: center;
+    font-size: 9pt;
+    padding: 1mm 0;
+    border-bottom: 1px solid #aaa;
+    font-weight: 600;
+  }
+  .cal-grid div {
+    min-height: 12mm;
+    border: 1px solid #ddd;
+    padding: 1mm;
+    text-align: right;
+    font-size: 9pt;
+    position: relative;
+  }
+  .cal-grid div.sun { color: #c0392b; }
+  .cal-grid div.sat { color: #2980b9; }
+  .cal-grid .day-num { color: inherit; }
+  .cal-grid div.holiday .day-num { color: #c0392b; }
+  .cal-grid div.today { border-color: #ffb300; }
+  .cal-grid div.today::after {
+    content: "😊";
+    position: absolute;
+    left: 1.5mm;
+    top: 1.5mm;
+    font-size: 10pt;
+    line-height: 1;
+  }
+
+  .schedule {
+    display: flex;
+    flex-direction: column;
+    gap: 2mm;
+  }
+  .slot {
+    border: 1px dashed #bbb;
+    padding: 2mm;
+  }
+  .slot-title {
+    font-weight: 700;
+    font-size: 10pt;
+    margin-bottom: 2mm;
+  }
+  .checkline {
+    display: flex;
+    align-items: center;
+    gap: 3mm;
+    margin: 1mm 0;
+  }
+  .checkline input[type="checkbox"] {
+    width: 12pt;
+    height: 12pt;
+  }
+  .line {
+    flex: 1;
+    border-bottom: 1px solid #666;
+    height: 14pt;
+  }
+
+  .planning {
+    display: flex;
+    flex-direction: column;
+    gap: 2mm;
+  }
+  .planning .checkline .line { border-bottom: 1px solid #777; }
+
+  .memo {
+    position: relative;
+    flex: 1;
+    border: 1px solid #aaa;
+    background: repeating-linear-gradient(
+      to bottom,
+      transparent,
+      transparent 6mm,
+      #ddd 6mm,
+      #ddd 6.2mm
+    );
+  }
+  .grid-pad {
+    position: relative;
+    flex: 1;
+    border: 1px solid #aaa;
+    background-image:
+      repeating-linear-gradient(to right, #ddd 0, #ddd 0.3mm, transparent 0.3mm, transparent 5mm),
+      repeating-linear-gradient(to bottom, #ddd 0, #ddd 0.3mm, transparent 0.3mm, transparent 5mm);
+  }
+  .quote-block {
+    margin-top: 3mm;
+    text-align: center;
+    font-size: 10pt;
+    color: #333;
+  }
+  .quote-block .quote-text {
+    display: block;
+    font-style: italic;
+    margin-bottom: 1mm;
+  }
+  .quote-block .quote-author {
+    display: block;
+    font-size: 9pt;
+    color: #666;
+  }
+
+  .fold-horizontal, .fold-vertical {
+    position: absolute;
+    left: 0; top: 0; right: 0; bottom: 0;
+    pointer-events: none;
+  }
+  .fold-horizontal::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 50%;
+    border-top: 1px dashed #999;
+  }
+  .fold-vertical::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 50%;
+    border-left: 1px dashed #999;
+  }
+</style>
+</head>
+<body>
+  <div class="page">
+    <div class="fold-horizontal"></div>
+    <div class="fold-vertical"></div>
+
+    <section class="section">
+      <h2></h2>
+      <div class="calendar-pair">
+        <div class="calendar compact" id="calCurrent">
+          <div class="cal-header"></div>
+          <div class="cal-weekdays"></div>
+          <div class="cal-grid"></div>
+        </div>
+        <div class="calendar compact" id="calNext">
+          <div class="cal-header"></div>
+          <div class="cal-weekdays"></div>
+          <div class="cal-grid"></div>
+        </div>
+      </div>
+      <div class="quote-block" id="quoteBlock">
+        <span class="quote-text"></span>
+        <span class="quote-author"></span>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2></h2>
+      <div class="schedule" id="dailyScheduleTop"></div>
+    </section>
+
+    <section class="section">
+      <h2></h2>
+      <div class="planning">
+        <div class="checkline"><input type="checkbox"><div class="line"></div></div>
+        <div class="checkline"><input type="checkbox"><div class="line"></div></div>
+        <div class="checkline"><input type="checkbox"><div class="line"></div></div>
+        <div class="checkline"><input type="checkbox"><div class="line"></div></div>
+        <div class="checkline"><input type="checkbox"><div class="line"></div></div>
+        <div class="checkline"><input type="checkbox"><div class="line"></div></div>
+        <div class="checkline"><input type="checkbox"><div class="line"></div></div>
+        <div class="checkline"><input type="checkbox"><div class="line"></div></div>
+      </div>
+      <div class="memo"></div>
+    </section>
+
+    <section class="section">
+      <h2></h2>
+      <div class="grid-pad"></div>
+    </section>
+
+  </div>
+
+<script>
+  function getMonthInfo(d) {
+    var year = d.getFullYear();
+    var month = d.getMonth();
+    var first = new Date(year, month, 1);
+    var last = new Date(year, month + 1, 0);
+    var firstWeekday = first.getDay();
+    var daysInMonth = last.getDate();
+    return { year: year, month: month + 1, firstWeekday: firstWeekday, daysInMonth: daysInMonth };
+  }
+  function renderMonthCalendar(root, date, noteMap) {
+    var info = getMonthInfo(date);
+    root.querySelector('.cal-header').textContent = info.month + '월';
+    var weekdays = ['일','월','화','수','목','금','토'];
+    var wd = root.querySelector('.cal-weekdays');
+    wd.innerHTML = '';
+    weekdays.forEach(function(w) {
+      var el = document.createElement('div');
+      el.textContent = w;
+      wd.appendChild(el);
+    });
+    var grid = root.querySelector('.cal-grid');
+    grid.innerHTML = '';
+    for (var i = 0; i < info.firstWeekday; i++) {
+      var empty = document.createElement('div');
+      grid.appendChild(empty);
+    }
+    for (var day = 1; day <= info.daysInMonth; day++) {
+      var cell = document.createElement('div');
+      var weekday = (info.firstWeekday + day - 1) % 7;
+      if (weekday === 0) cell.classList.add('sun');
+      if (weekday === 6) cell.classList.add('sat');
+      var mm = (info.month < 10 ? '0' + info.month : '' + info.month);
+      var dd = (day < 10 ? '0' + day : '' + day);
+      var ds = info.year + '-' + mm + '-' + dd;
+      if (window.holidaySet && window.holidaySet.has(ds)) {
+        cell.classList.add('holiday');
+      }
+      var today = new Date();
+      var tYear = today.getFullYear();
+      var tMonth = today.getMonth() + 1;
+      var tDay = today.getDate();
+      if (info.year === tYear && info.month === tMonth && day === tDay) {
+        cell.classList.add('today');
+      }
+      var num = document.createElement('span');
+      num.className = 'day-num';
+      num.textContent = day;
+      num.style.position = 'absolute';
+      num.style.right = '1mm';
+      num.style.top = '1mm';
+      num.style.lineHeight = '1';
+      cell.appendChild(num);
+
+      var note = noteMap && noteMap[ds] ? String(noteMap[ds]) : '';
+      if (note) {
+        var noteEl = document.createElement('div');
+        noteEl.textContent = note.slice(0, 5);
+        noteEl.style.position = 'absolute';
+        noteEl.style.left = '0.1mm';
+        noteEl.style.right = '1mm';
+        noteEl.style.top = '3.2mm';
+        noteEl.style.fontSize = '7pt';
+        noteEl.style.color = '#1e40af';
+        noteEl.style.whiteSpace = 'nowrap';
+        noteEl.style.overflow = 'hidden';
+        noteEl.style.maxWidth = '100%';
+        noteEl.style.border = '0';
+        noteEl.style.outline = '0';
+        noteEl.style.background = 'transparent';
+        noteEl.style.textAlign = 'left';
+        cell.appendChild(noteEl);
+      }
+      grid.appendChild(cell);
+    }
+  }
+  function renderCurrentAndNext(baseDate, noteMaps) {
+    var now = baseDate instanceof Date ? baseDate : new Date();
+    var next = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+    renderMonthCalendar(document.getElementById('calCurrent'), now, noteMaps && noteMaps.current ? noteMaps.current : null);
+    renderMonthCalendar(document.getElementById('calNext'), next, noteMaps && noteMaps.next ? noteMaps.next : null);
+  }
+  function fetchHolidays(years, cb) {
+    var set = new Set();
+    var pending = years.length;
+    years.forEach(function(y) {
+      fetch('https://date.nager.at/api/v3/PublicHolidays/' + y + '/KR')
+        .then(function(r) { if (!r.ok) throw new Error(''); return r.json(); })
+        .then(function(list) { list.forEach(function(item) { set.add(item.date); }); })
+        .catch(function(e) {})
+        .finally(function() { pending--; if (pending === 0) cb(set); });
+    });
+  }
+  function buildDailySchedule(targetId) {
+    var slots = [
+      { title: '06:00–09:00' },
+      { title: '09:00–12:00' },
+      { title: '12:00–15:00' },
+      { title: '15:00–18:00' },
+      { title: '18:00–22:00' }
+    ];
+    var wrap = document.getElementById(targetId);
+    wrap.innerHTML = '';
+    slots.forEach(function(s) {
+      var slot = document.createElement('div');
+      slot.className = 'slot';
+      var t = document.createElement('div');
+      t.className = 'slot-title';
+      t.textContent = s.title;
+      slot.appendChild(t);
+      for (var i = 0; i < 2; i++) {
+        var line = document.createElement('div');
+        line.className = 'checkline';
+        var cb = document.createElement('input');
+        cb.type = 'checkbox';
+        var l = document.createElement('div');
+        l.className = 'line';
+        line.appendChild(cb);
+        line.appendChild(l);
+        slot.appendChild(line);
+      }
+      wrap.appendChild(slot);
+    });
+  }
+  function toISODateLocal(d) {
+    var y = d.getFullYear();
+    var m = String(d.getMonth() + 1).padStart(2, '0');
+    var day = String(d.getDate()).padStart(2, '0');
+    return y + '-' + m + '-' + day;
+  }
+  function getSelectedDate() {
+    var params = new URLSearchParams(location.search);
+    var v = params.get('date');
+    if (v && /^\d{4}-\d{2}-\d{2}$/.test(v)) return v;
+    return toISODateLocal(new Date());
+  }
+  var __selectedDate = getSelectedDate();
+  var __selectedDateObj = new Date(__selectedDate);
+  if (Number.isNaN(__selectedDateObj.getTime())) {
+    __selectedDateObj = new Date();
+  }
+
+  function fetchMonthNotes(d) {
+    var y = d.getFullYear();
+    var m = d.getMonth() + 1;
+    return fetch('/api/month-notes?year=' + y + '&month=' + m)
+      .then(function(r) { if (!r.ok) throw new Error(''); return r.json(); })
+      .then(function(data) { return (data && data.notes) ? data.notes : {}; })
+      .catch(function() { return {}; });
+  }
+
+  (function() {
+    var base = __selectedDateObj;
+    var next = new Date(base.getFullYear(), base.getMonth() + 1, 1);
+    Promise.all([fetchMonthNotes(base), fetchMonthNotes(next)]).then(function(res) {
+      window.__noteMaps = { current: res[0] || {}, next: res[1] || {} };
+      renderCurrentAndNext(__selectedDateObj, window.__noteMaps);
+    });
+  })();
+
+  renderCurrentAndNext(__selectedDateObj);
+  (function() {
+    var now = __selectedDateObj;
+    var next = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+    var years = [now.getFullYear()];
+    if (next.getFullYear() !== now.getFullYear()) years.push(next.getFullYear());
+    fetchHolidays(years, function(set) {
+      window.holidaySet = set;
+      renderCurrentAndNext(__selectedDateObj, window.__noteMaps || null);
+    });
+  })();
+  buildDailySchedule('dailyScheduleTop');
+  function fetchQuote() {
+    var el = document.getElementById('quoteBlock');
+    if (!el) return;
+    fetch('https://korean-advice-open-api.vercel.app/api/advice')
+      .then(function(r) { if (!r.ok) throw new Error(''); return r.json(); })
+      .then(function(data) {
+        var msg = (data && data.message) ? data.message : '';
+        var author = (data && data.author) ? data.author : '';
+        var profile = (data && data.authorProfile) ? data.authorProfile : '';
+        el.querySelector('.quote-text').textContent = msg ? ('“' + msg + '”') : '“오늘도 좋은 하루 되세요.”';
+        el.querySelector('.quote-author').textContent = author ? ('— ' + author + (profile ? ' (' + profile + ')' : '')) : '';
+      })
+      .catch(function() {
+        el.querySelector('.quote-text').textContent = '오늘의 명언을 불러오지 못했습니다.';
+        el.querySelector('.quote-author').textContent = '';
+      });
+  }
+  fetchQuote();
+
+  function ensureMemoContentEl() {
+    var memo = document.querySelector('.memo');
+    if (!memo) return null;
+    var existing = memo.querySelector('.memo-content');
+    if (existing) return existing;
+    var el = document.createElement('div');
+    el.className = 'memo-content';
+    el.style.position = 'absolute';
+    el.style.left = '2mm';
+    el.style.right = '2mm';
+    el.style.top = '2mm';
+    el.style.bottom = '2mm';
+    el.style.whiteSpace = 'pre-wrap';
+    el.style.fontSize = '9pt';
+    el.style.lineHeight = '1.25';
+    el.style.overflow = 'hidden';
+    memo.appendChild(el);
+    return el;
+  }
+
+  function ensureGridOverlay() {
+    var pad = document.querySelector('.grid-pad');
+    if (!pad) return null;
+    var existing = pad.querySelector('.grid-overlay');
+    if (existing) return existing;
+    var el = document.createElement('div');
+    el.className = 'grid-overlay';
+    el.style.position = 'absolute';
+    el.style.left = '0';
+    el.style.top = '0';
+    el.style.right = '0';
+    el.style.bottom = '0';
+    el.style.overflow = 'hidden';
+    pad.appendChild(el);
+    return el;
+  }
+
+  function applyChecklist(items) {
+    var planning = document.querySelector('.planning');
+    if (!planning) return;
+    var rows = planning.querySelectorAll('.checkline');
+    for (var i = 0; i < rows.length; i++) {
+      var item = items && items[i] ? items[i] : null;
+      var cb = rows[i].querySelector('input[type="checkbox"]');
+      var line = rows[i].querySelector('.line');
+      if (cb) cb.checked = !!(item && item.checked);
+      if (line) {
+        var text = item ? (item.text || '') : '';
+        var note = item ? (item.note || '') : '';
+        line.textContent = text + (note ? ' / ' + note : '');
+        line.style.fontSize = '9pt';
+        line.style.paddingLeft = '1mm';
+      }
+    }
+  }
+
+  function applyScheduleMemos(items) {
+    var wrap = document.getElementById('dailyScheduleTop');
+    if (!wrap) return;
+    var targets = wrap.querySelectorAll('.checkline');
+    var list = [];
+
+    if (Array.isArray(items)) {
+      list = items
+        .map(function(x) {
+          var h = Number(x && x.hour);
+          return { hour: Number.isFinite(h) ? Math.max(0, Math.min(23, h)) : 0, text: (x && x.text) ? String(x.text) : '' };
+        })
+        .sort(function(a, b) { return a.hour - b.hour; });
+    } else {
+      var lines = String(items || '').split('\n');
+      list = lines.map(function(t, i) { return { hour: Math.min(i, 23), text: t || '' }; });
+    }
+
+    for (var i = 0; i < targets.length; i++) {
+      var clearLine = targets[i].querySelector('.line');
+      if (!clearLine) continue;
+      clearLine.textContent = '';
+      clearLine.style.fontSize = '9pt';
+      clearLine.style.paddingLeft = '1mm';
+    }
+
+    function parseHour(s) {
+      var m = String(s || '').match(/(\d{1,2}):\d{2}/);
+      if (!m) return null;
+      var h = Number(m[1]);
+      if (!Number.isFinite(h)) return null;
+      return Math.max(0, Math.min(23, h));
+    }
+
+    var lineSlots = [];
+    var slotEls = wrap.querySelectorAll('.slot');
+    if (slotEls && slotEls.length) {
+      for (var s = 0; s < slotEls.length; s++) {
+        var title = slotEls[s].querySelector('.slot-title');
+        var titleText = title ? title.textContent : '';
+        var parts = String(titleText || '').split('–');
+        var start = parseHour(parts[0]);
+        var end = parts.length > 1 ? parseHour(parts[1]) : null;
+        if (start === null) start = 0;
+        if (end === null) end = Math.min(23, start + 3);
+        var lines = slotEls[s].querySelectorAll('.checkline');
+        for (var li = 0; li < lines.length; li++) {
+          var anchor = li === 0 ? start : Math.max(start, end - 1);
+          lineSlots.push({
+            idx: lineSlots.length,
+            anchorHour: anchor,
+            lineEl: lines[li].querySelector('.line'),
+          });
+        }
+      }
+    }
+
+    if (lineSlots.length === 0) {
+      for (var t = 0; t < targets.length; t++) {
+        lineSlots.push({ idx: t, anchorHour: t, lineEl: targets[t].querySelector('.line') });
+      }
+    }
+
+    var used = new Set();
+    var overflow = [];
+    for (var mIdx = 0; mIdx < list.length; mIdx++) {
+      var memo = list[mIdx];
+      if (!memo || !memo.text) continue;
+
+      var best = null;
+      var bestDist = Infinity;
+      for (var lIdx = 0; lIdx < lineSlots.length; lIdx++) {
+        if (used.has(lIdx)) continue;
+        var d = Math.abs((memo.hour || 0) - lineSlots[lIdx].anchorHour);
+        if (d < bestDist) {
+          bestDist = d;
+          best = lIdx;
+        }
+      }
+
+      if (best === null) {
+        overflow.push(String(memo.hour).padStart(2, '0') + ':00 ' + memo.text);
+        continue;
+      }
+
+      used.add(best);
+      var el = lineSlots[best].lineEl;
+      if (!el) continue;
+      el.textContent = String(memo.hour).padStart(2, '0') + ':00  ' + memo.text;
+      el.style.fontSize = '9pt';
+      el.style.paddingLeft = '1mm';
+    }
+
+    if (overflow.length > 0 && lineSlots.length > 0) {
+      var last = lineSlots[lineSlots.length - 1].lineEl;
+      if (last) {
+        last.textContent = (last.textContent ? last.textContent + ' / ' : '') + overflow.join(' / ');
+      }
+    }
+  }
+
+  function applyBoardMemo(text) {
+    var el = ensureMemoContentEl();
+    if (!el) return;
+    el.textContent = text || '';
+  }
+
+  function applyGrid(grid) {
+    var overlay = ensureGridOverlay();
+    if (!overlay) return;
+    overlay.innerHTML = '';
+    var blocks = (grid && grid.blocks) ? grid.blocks : [];
+    var cw = overlay.clientWidth || 1;
+    var ch = overlay.clientHeight || 1;
+    var maxX = 1;
+    var maxY = 1;
+    blocks.forEach(function(b) {
+      maxX = Math.max(maxX, (b.x || 0) + (b.w || 0));
+      maxY = Math.max(maxY, (b.y || 0) + (b.h || 0));
+    });
+    var scale = Math.min(cw / maxX, ch / maxY, 1);
+
+    blocks.forEach(function(b) {
+      var box = document.createElement('div');
+      box.style.position = 'absolute';
+      box.style.left = (b.x * scale) + 'px';
+      box.style.top = (b.y * scale) + 'px';
+      box.style.width = (b.w * scale) + 'px';
+      box.style.height = (b.h * scale) + 'px';
+      box.style.border = '1px solid #777';
+      box.style.borderRadius = '6px';
+      box.style.background = 'rgba(255,255,255,0.7)';
+      box.style.overflow = 'hidden';
+
+      if (b.type === 'image' && b.image && b.image.url) {
+        var img = document.createElement('img');
+        img.src = b.image.url;
+        img.alt = 'uploaded';
+        img.style.width = '100%';
+        img.style.height = '100%';
+        img.style.objectFit = 'contain';
+        box.appendChild(img);
+      } else {
+        var t = document.createElement('div');
+        t.textContent = (b.text || '');
+        t.style.padding = '6px';
+        t.style.fontSize = '9pt';
+        t.style.whiteSpace = 'pre-wrap';
+        t.style.lineHeight = '1.25';
+        box.appendChild(t);
+      }
+      overlay.appendChild(box);
+    });
+  }
+
+  function setTitle() {
+    var hs = document.querySelectorAll('.section h2');
+    if (hs && hs[0]) hs[0].textContent = __selectedDate;
+  }
+
+  function applyDayPayload(payload) {
+    setTitle();
+    applyChecklist(payload && payload.checklist ? payload.checklist : []);
+    applyScheduleMemos(payload ? (payload.scheduleMemos || payload.lineMemo || '') : '');
+    applyBoardMemo(payload ? payload.boardMemo : '');
+    applyGrid(payload ? payload.grid : null);
+  }
+
+  function fetchDay(date) {
+    return fetch('/api/days/' + encodeURIComponent(date))
+      .then(function(r) { if (!r.ok) throw new Error(''); return r.json(); });
+  }
+
+  fetchDay(__selectedDate)
+    .then(function(payload) {
+      applyDayPayload(payload);
+      var params = new URLSearchParams(location.search);
+      if (params.get('autoprint') === '1') {
+        setTimeout(function() { window.print(); }, 200);
+      }
+    })
+    .catch(function() {
+      applyDayPayload({ checklist: [], scheduleMemos: [], boardMemo: '', grid: { blocks: [] } });
+    });
+</script>
+</body>
+</html>
