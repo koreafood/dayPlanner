@@ -26,7 +26,7 @@
     .page { margin: 0; box-shadow: none; }
   }
   .section {
-    border: 1px solid #222;
+    border: 1px solid #e6e6e6;
     padding: 4mm;
     display: flex;
     flex-direction: column;
@@ -42,12 +42,13 @@
   .calendar {
     display: grid;
     grid-template-rows: auto auto 1fr;
-    gap: 2mm;
+    gap: 1mm;
     min-height: 0;
   }
   .calendar.compact .cal-header { font-size: 10pt; }
   .calendar.compact .cal-weekdays div { font-size: 8pt; }
   .calendar.compact .cal-grid div { min-height: 8mm; font-size: 8pt; }
+  #calNext.calendar.compact .cal-grid div { min-height: 7.2mm; }
   .calendar-pair {
     display: flex;
     flex-direction: column;
@@ -88,7 +89,7 @@
     content: "😊";
     position: absolute;
     left: 1.5mm;
-    top: 1.5mm;
+    top: 1.0mm;
     font-size: 10pt;
     line-height: 1;
   }
@@ -649,8 +650,120 @@
     if (hs && hs[0]) hs[0].textContent = __selectedDate;
   }
 
+  function weatherCodeToText(code) {
+    var c = Number(code);
+    if (!Number.isFinite(c)) return '';
+    if (c === 0) return '맑음';
+    if (c === 1) return '대체로 맑음';
+    if (c === 2) return '부분적으로 흐림';
+    if (c === 3) return '흐림';
+    if (c === 45 || c === 48) return '안개';
+    if (c === 51 || c === 53 || c === 55) return '이슬비';
+    if (c === 61 || c === 63 || c === 65) return '비';
+    if (c === 71 || c === 73 || c === 75) return '눈';
+    if (c === 80 || c === 81 || c === 82) return '소나기';
+    if (c === 95) return '뇌우';
+    if (c === 96 || c === 99) return '우박뇌우';
+    return '코드' + c;
+  }
+
+  function ensurePrintWeatherEl() {
+    var existing = document.getElementById('printWeather');
+    if (existing) return existing;
+
+    var calCurrent = document.getElementById('calCurrent');
+    var calHeader = calCurrent ? calCurrent.querySelector('.cal-header') : null;
+    if (!calCurrent || !calHeader) {
+      var first = document.querySelector('.section');
+      if (!first) return null;
+      var h2 = first.querySelector('h2');
+      if (!h2) return null;
+      var fallback = document.createElement('div');
+      fallback.id = 'printWeather';
+      fallback.style.marginTop = '1mm';
+      fallback.style.textAlign = 'center';
+      fallback.style.fontSize = '8pt';
+      fallback.style.color = '#333';
+      h2.insertAdjacentElement('afterend', fallback);
+      return fallback;
+    }
+
+    var el = document.createElement('div');
+    el.id = 'printWeather';
+    el.style.textAlign = 'center';
+    el.style.fontSize = '8pt';
+    el.style.color = '#333';
+    el.style.marginBottom = '0.5mm';
+    calHeader.insertAdjacentElement('beforebegin', el);
+    return el;
+  }
+
+  function readSavedLocation() {
+    try {
+      var raw = localStorage.getItem('dp_location');
+      if (!raw) return { name: 'Seoul', latitude: 37.5665, longitude: 126.9780, timezone: 'Asia/Seoul' };
+      var parsed = JSON.parse(raw);
+      if (typeof parsed.latitude !== 'number' || typeof parsed.longitude !== 'number') {
+        return { name: 'Seoul', latitude: 37.5665, longitude: 126.9780, timezone: 'Asia/Seoul' };
+      }
+      return {
+        name: (typeof parsed.name === 'string' && parsed.name) ? parsed.name : 'Custom',
+        latitude: parsed.latitude,
+        longitude: parsed.longitude,
+        timezone: (typeof parsed.timezone === 'string') ? parsed.timezone : 'auto'
+      };
+    } catch (e) {
+      return { name: 'Seoul', latitude: 37.5665, longitude: 126.9780, timezone: 'Asia/Seoul' };
+    }
+  }
+
+  function fetchWeatherForDate(dateStr) {
+    var loc = readSavedLocation();
+    var daily = 'weathercode,temperature_2m_max,temperature_2m_min,precipitation_probability_max';
+    var tz = loc.timezone || 'auto';
+    var url = 'https://api.open-meteo.com/v1/forecast'
+      + '?latitude=' + encodeURIComponent(loc.latitude)
+      + '&longitude=' + encodeURIComponent(loc.longitude)
+      + '&daily=' + encodeURIComponent(daily)
+      + '&timezone=' + encodeURIComponent(tz)
+      + '&start_date=' + encodeURIComponent(dateStr)
+      + '&end_date=' + encodeURIComponent(dateStr);
+
+    return fetch(url)
+      .then(function(r) { if (!r.ok) throw new Error(''); return r.json(); })
+      .then(function(data) {
+        var d = data && data.daily ? data.daily : null;
+        if (!d || !d.time || !d.time.length) return null;
+        return {
+          weathercode: d.weathercode ? d.weathercode[0] : null,
+          tmax: d.temperature_2m_max ? d.temperature_2m_max[0] : null,
+          tmin: d.temperature_2m_min ? d.temperature_2m_min[0] : null,
+          pop: d.precipitation_probability_max ? d.precipitation_probability_max[0] : null,
+          place: loc.name
+        };
+      })
+      .catch(function() { return null; });
+  }
+
+  function renderPrintWeather() {
+    var el = ensurePrintWeatherEl();
+    if (!el) return;
+    el.textContent = '';
+    fetchWeatherForDate(__selectedDate).then(function(w) {
+      if (!w) return;
+      var wx = weatherCodeToText(w.weathercode);
+      var tmin = (typeof w.tmin === 'number') ? Math.round(w.tmin) : null;
+      var tmax = (typeof w.tmax === 'number') ? Math.round(w.tmax) : null;
+      var temp = (tmin !== null && tmax !== null) ? (tmin + '~' + tmax + '°') : '';
+      var pop = (typeof w.pop === 'number') ? ('강수 ' + Math.round(w.pop) + '%') : '';
+      var parts = [w.place, wx, temp, pop].filter(function(x) { return x && String(x).trim(); });
+      el.textContent = parts.join(' · ');
+    });
+  }
+
   function applyDayPayload(payload) {
     setTitle();
+    renderPrintWeather();
     applyChecklist(payload && payload.checklist ? payload.checklist : []);
     applyScheduleMemos(payload ? (payload.scheduleMemos || payload.lineMemo || '') : '');
     applyBoardMemo(payload ? payload.boardMemo : '');

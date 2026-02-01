@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import PlannerHeader from '@/components/planner/PlannerHeader.vue'
 import MonthCalendar from '@/components/planner/MonthCalendar.vue'
+import WeatherPanel from '@/components/planner/WeatherPanel.vue'
 import ChecklistPanel from '@/components/planner/ChecklistPanel.vue'
 import LineMemosPanel from '@/components/planner/LineMemosPanel.vue'
 import MemoBoardPanel from '@/components/planner/MemoBoardPanel.vue'
@@ -73,6 +74,8 @@ function onUpload(file: File) {
           />
           <div class="mt-2 text-[11px] text-zinc-500">달력은 파란 점으로 표시되고, 마우스 오버 시 툴팁으로 보입니다.</div>
         </section>
+
+        <WeatherPanel />
 
         <section class="rounded-2xl border border-zinc-800 bg-zinc-950 p-4">
           <div class="flex items-center justify-between">

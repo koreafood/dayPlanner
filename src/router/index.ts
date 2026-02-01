@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import HomePage from '@/pages/HomePage.vue'
+import SetupPage from '@/pages/SetupPage.vue'
 
 // 定义路由配置
 const routes = [
@@ -9,11 +10,9 @@ const routes = [
     component: HomePage,
   },
   {
-    path: '/about',
-    name: 'about',
-    component: {
-      template: '<div class="text-center text-xl p-8">About Page - Coming Soon</div>',
-    },
+    path: '/setup',
+    name: 'setup',
+    component: SetupPage,
   },
 ]
 
