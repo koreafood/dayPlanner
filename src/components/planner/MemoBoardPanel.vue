@@ -1,14 +1,22 @@
 <script setup lang="ts">
+/*
+  MemoBoardPanel
+  - 목적: 자유롭게 텍스트 메모를 다중 줄로 작성하는 메모판 제공
+  - v-model:
+    * boardMemo: 문자열
+*/
 const boardMemo = defineModel<string>('boardMemo', { required: true })
 </script>
 
 <template>
+  <!-- 메모판 패널 -->
   <section class="rounded-2xl border border-zinc-800 bg-zinc-950 p-4">
     <div class="mb-3 flex items-center justify-between">
       <div class="text-sm font-semibold text-zinc-100">메모판</div>
       <div class="text-[11px] text-zinc-400">자유 메모</div>
     </div>
 
+    <!-- 메모 입력 -->
     <textarea
       v-model="boardMemo"
       rows="10"
@@ -17,4 +25,3 @@ const boardMemo = defineModel<string>('boardMemo', { required: true })
     />
   </section>
 </template>
-

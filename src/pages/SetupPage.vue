@@ -1,4 +1,15 @@
 <script setup lang="ts">
+/*
+  SetupPage
+  - 목적: 날씨 지역 설정 페이지로 현재 저장된 지역 확인, 내 위치 사용, 텍스트 검색을 통해 지역 선택
+  - 의존성:
+    * vue-router: 설정 완료 후 홈으로 이동
+    * lib/weather: 위치 저장/읽기, 역지오코딩, 검색
+  - 주요 상태:
+    * current: 선택된 지역
+    * query/results: 검색어와 결과 목록
+    * loading/error: 진행 상태 및 오류 메시지
+*/
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import type { WeatherLocation } from '@/lib/weather'
@@ -72,7 +83,9 @@ function goHome() {
 </script>
 
 <template>
+  <!-- 페이지 컨테이너 -->
   <div class="min-h-screen bg-zinc-950 text-zinc-100">
+    <!-- 헤더: 설정 타이틀과 돌아가기 -->
     <header class="w-full border-b border-zinc-800 bg-zinc-950/80 backdrop-blur">
       <div class="mx-auto flex max-w-3xl items-center justify-between px-4 py-3">
         <div class="text-sm font-semibold tracking-tight text-zinc-100">설정</div>
@@ -86,6 +99,7 @@ function goHome() {
       </div>
     </header>
 
+    <!-- 본문: 현재 지역과 지역 검색 -->
     <main class="mx-auto max-w-3xl space-y-4 px-4 py-4">
       <section class="rounded-2xl border border-zinc-800 bg-zinc-950 p-4">
         <div class="text-xs font-semibold text-zinc-200">현재 지역</div>
@@ -154,4 +168,3 @@ function goHome() {
     </main>
   </div>
 </template>
-

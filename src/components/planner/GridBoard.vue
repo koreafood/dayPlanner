@@ -1,4 +1,17 @@
 <script setup lang="ts">
+/*
+  GridBoard
+  - 목적: 격자 보드 위에 텍스트/이미지 블록을 배치하고 드래그로 위치 이동, 업데이트/삭제/업로드 이벤트 제공
+  - v-model:
+    * grid: GridPayload (blocks 배열과 보드 상태)
+  - 이벤트:
+    * addText: 텍스트 블록 추가 요청
+    * remove(id): 특정 블록 삭제
+    * update(block): 블록 내용/좌표 갱신
+    * upload(file): 이미지 업로드 요청
+  - 드래그 로직:
+    * header 영역 pointerdown → drag 상태 저장 → root에서 pointermove로 좌표 업데이트 → pointerup으로 종료
+*/
 import { ref } from 'vue'
 import { ImageUp, Plus, Trash2 } from 'lucide-vue-next'
 import type { GridBlock, GridPayload } from '@/composables/usePlanner'
@@ -78,10 +91,12 @@ function onTextInput(e: Event, b: GridBlock) {
 </script>
 
 <template>
+  <!-- 모눈 보드 패널 -->
   <section class="rounded-2xl border border-zinc-800 bg-zinc-950 p-4">
     <div class="mb-3 flex items-center justify-between">
       <div class="text-sm font-semibold text-zinc-100">모눈</div>
       <div class="flex items-center gap-2">
+        <!-- 텍스트 블록 추가 -->
         <button
           type="button"
           class="inline-flex items-center gap-2 rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-1.5 text-xs font-medium text-zinc-200 hover:bg-zinc-800"
@@ -90,6 +105,7 @@ function onTextInput(e: Event, b: GridBlock) {
           <Plus class="h-4 w-4" />
           텍스트
         </button>
+        <!-- 이미지 업로드 -->
         <label
           class="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-1.5 text-xs font-medium text-zinc-200 hover:bg-zinc-800"
         >
@@ -100,6 +116,7 @@ function onTextInput(e: Event, b: GridBlock) {
       </div>
     </div>
 
+    <!-- 보드 영역: 포인터 이벤트 처리 -->
     <div
       ref="rootRef"
       class="relative h-[420px] overflow-hidden rounded-xl border border-zinc-800 bg-[linear-gradient(to_right,rgba(39,55,90,0.6)_1px,transparent_1px),linear-gradient(to_bottom,rgba(39,55,90,0.6)_1px,transparent_1px)] bg-[size:24px_24px]"
@@ -108,12 +125,14 @@ function onTextInput(e: Event, b: GridBlock) {
       @pointercancel="onRootPointerUp"
       @pointerleave="onRootPointerUp"
     >
+      <!-- 블록 렌더링 -->
       <div
         v-for="b in grid.blocks"
         :key="b.id"
         class="absolute rounded-xl border border-zinc-800 bg-zinc-950/90 shadow-sm"
         :style="{ left: b.x + 'px', top: b.y + 'px', width: b.w + 'px', height: b.h + 'px' }"
       >
+        <!-- 블록 헤더: 타입 표시, 삭제 -->
         <div
           class="flex items-center justify-between gap-2 border-b border-zinc-800 px-2 py-1"
           @pointerdown="onHeaderPointerDown($event, b)"
@@ -128,6 +147,7 @@ function onTextInput(e: Event, b: GridBlock) {
           </button>
         </div>
 
+        <!-- 블록 내용 -->
         <div class="h-[calc(100%-34px)] p-2">
           <textarea
             v-if="b.type === 'text'"
@@ -149,6 +169,7 @@ function onTextInput(e: Event, b: GridBlock) {
         </div>
       </div>
 
+      <!-- 빈 상태 안내 -->
       <div
         v-if="grid.blocks.length === 0"
         class="absolute inset-0 flex items-center justify-center text-center"

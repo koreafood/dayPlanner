@@ -1,4 +1,15 @@
 <script setup lang="ts">
+/*
+  HomePage
+  - 목적: Day Planner 메인 페이지로 달력, 날씨, 체크리스트, 일정메모, 메모판, 모눈보드 등을 배치하고
+          데이터 로드/저장/프린트 및 이미지 업로드를 관리
+  - 의존성:
+    * usePlanner: 상태 관리 및 액션 제공
+    * lucide-vue-next: Download/Printer/Save 아이콘
+  - 주요 동작:
+    * 날짜 선택, 데이터 불러오기/저장, 프린트(필요 시 자동 저장 후 새 창)
+    * 그리드에서 텍스트/이미지 추가/삭제/업데이트, 이미지 업로드
+*/
 import PlannerHeader from '@/components/planner/PlannerHeader.vue'
 import MonthCalendar from '@/components/planner/MonthCalendar.vue'
 import WeatherPanel from '@/components/planner/WeatherPanel.vue'
@@ -56,13 +67,18 @@ function onUpload(file: File) {
 </script>
 
 <template>
+  <!-- 전체 페이지 컨테이너 -->
   <div class="min-h-screen bg-zinc-950 text-zinc-100">
+    <!-- 헤더 -->
     <PlannerHeader title="Day Planner" :date="selectedDate" />
 
+    <!-- 메인 레이아웃: 좌측 보조 패널, 우측 메인 편집 영역 -->
     <main class="mx-auto grid max-w-6xl grid-cols-1 gap-4 px-4 py-4 lg:grid-cols-[320px,1fr]">
+      <!-- 좌측 패널: 달력, 날씨, 상태/동작 -->
       <aside class="space-y-4">
         <MonthCalendar :selected-date="selectedDate" :selected-day-note="day.dayNote" @select="onSelectDate" />
 
+        <!-- 한 줄 메모 입력 -->
         <section class="rounded-2xl border border-zinc-800 bg-zinc-950 p-4">
           <div class="text-xs font-semibold text-zinc-200">한줄메모</div>
           <input
@@ -77,6 +93,7 @@ function onUpload(file: File) {
 
         <WeatherPanel />
 
+        <!-- 상태/동작 버튼들: 불러오기, 프린트, 저장 -->
         <section class="rounded-2xl border border-zinc-800 bg-zinc-950 p-4">
           <div class="flex items-center justify-between">
             <div>
@@ -120,6 +137,7 @@ function onUpload(file: File) {
         </section>
       </aside>
 
+      <!-- 우측 메인 영역: 체크리스트/일정메모, 메모판/모눈 -->
       <section class="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <div class="space-y-4">
           <ChecklistPanel

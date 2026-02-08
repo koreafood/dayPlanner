@@ -1,4 +1,17 @@
 <script setup lang="ts">
+/*
+  MonthCalendar
+  - 목적: 월 달력을 렌더링하고 선택 날짜를 상위로 전달, 월별 메모 툴팁 표시
+  - props:
+    * selectedDate: 선택된 날짜(YYYY-MM-DD)
+    * selectedDayNote?: 선택된 날짜의 한 줄 메모(달력 점/툴팁에 반영)
+  - 이벤트:
+    * select(date): 날짜 선택 시 상위로 전달
+  - 로직:
+    * cursor: 현재 표시 중인 월의 1일 날짜
+    * monthNotes: 서버에서 월별 메모를 받아와 날짜별로 표시
+    * cells: 해당 월의 날짜 셀 배열(앞쪽 공백 포함)
+*/
 import { computed, ref, watch } from 'vue'
 import { ChevronLeft, ChevronRight } from 'lucide-vue-next'
 
@@ -99,10 +112,12 @@ const weekdays = ['일', '월', '화', '수', '목', '금', '토']
 </script>
 
 <template>
+  <!-- 달력 패널 -->
   <section class="rounded-2xl border border-zinc-800 bg-zinc-950 p-4">
     <div class="mb-3 flex items-center justify-between">
       <div class="text-sm font-semibold text-zinc-100">달력</div>
       <div class="flex items-center gap-2">
+        <!-- 이전/다음 달 이동 -->
         <button
           type="button"
           class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-zinc-800 bg-zinc-900 text-zinc-200 hover:bg-zinc-800"
@@ -123,10 +138,12 @@ const weekdays = ['일', '월', '화', '수', '목', '금', '토']
       </div>
     </div>
 
+    <!-- 요일 헤더 -->
     <div class="grid grid-cols-7 gap-1 text-center text-[11px] font-semibold text-zinc-400">
       <div v-for="w in weekdays" :key="w" class="py-1">{{ w }}</div>
     </div>
 
+    <!-- 날짜 셀 -->
     <div class="mt-1 grid grid-cols-7 gap-1">
       <button
         v-for="c in cells"
@@ -151,6 +168,7 @@ const weekdays = ['일', '월', '화', '수', '목', '금', '토']
       </button>
     </div>
 
+    <!-- 선택 날짜 표시 -->
     <div class="mt-3 rounded-xl border border-zinc-800 bg-zinc-900 px-3 py-2">
       <div class="text-[11px] text-zinc-400">선택 날짜</div>
       <div class="text-sm font-semibold text-zinc-100">{{ selectedDate }}</div>
