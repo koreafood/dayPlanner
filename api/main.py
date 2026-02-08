@@ -6,9 +6,12 @@ import sqlite3
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
+from urllib.error import HTTPError
+from urllib.parse import urlencode
+from urllib.request import Request as UrlRequest, urlopen
 
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import FastAPI, File, HTTPException, Query, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
@@ -24,6 +27,32 @@ def parse_iso_date(date_str: str) -> str:
         return datetime.fromisoformat(date_str).date().isoformat()
     except Exception:
         raise HTTPException(status_code=400, detail='date는 YYYY-MM-DD 형식이어야 합니다.')
+
+
+def fetch_upstream_json(url: str) -> Any:
+    req = UrlRequest(url, headers={"User-Agent": "dayplanner"})
+    try:
+        with urlopen(req, timeout=10) as res:
+            raw = res.read()
+    except HTTPError as e:
+        raise HTTPException(status_code=e.code, detail='날씨 API 오류')
+    except Exception:
+        raise HTTPException(status_code=502, detail='날씨 API 요청 실패')
+    try:
+        return json.loads(raw)
+    except Exception:
+        raise HTTPException(status_code=502, detail='날씨 API 응답 파싱 실패')
+
+
+def resolve_public_base_url(request: Request) -> str:
+    base_url = os.getenv('PUBLIC_BASE_URL', '').strip()
+    if base_url and 'dp.lala.dedyn.io' not in base_url:
+        return base_url.rstrip('/')
+    proto = request.headers.get('x-forwarded-proto') or request.url.scheme
+    host = request.headers.get('x-forwarded-host') or request.headers.get('host')
+    if host:
+        return f'{proto}://{host}'
+    return base_url.rstrip('/')
 
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -265,8 +294,63 @@ def get_month_notes(year: int, month: int) -> MonthNotesResult:
     return MonthNotesResult(notes=notes)
 
 
+@app.get('/api/weather/forecast')
+def get_weather_forecast(
+    latitude: float,
+    longitude: float,
+    daily: str = Query('weathercode,temperature_2m_max,temperature_2m_min,precipitation_probability_max'),
+    timezone: str = Query('auto'),
+    forecast_days: int | None = Query(None),
+    start_date: str | None = Query(None),
+    end_date: str | None = Query(None),
+) -> Any:
+    params: dict[str, str] = {
+        'latitude': str(latitude),
+        'longitude': str(longitude),
+        'daily': daily,
+        'timezone': timezone,
+    }
+    if forecast_days is not None:
+        params['forecast_days'] = str(forecast_days)
+    if start_date is not None:
+        params['start_date'] = start_date
+    if end_date is not None:
+        params['end_date'] = end_date
+    url = f"https://api.open-meteo.com/v1/forecast?{urlencode(params)}"
+    return fetch_upstream_json(url)
+
+
+@app.get('/api/weather/geocode')
+def get_weather_geocode(
+    name: str,
+    count: int = Query(8, ge=1, le=20),
+    language: str = Query('ko'),
+    format: str = Query('json'),
+) -> Any:
+    params = {'name': name, 'count': str(count), 'language': language, 'format': format}
+    url = f"https://geocoding-api.open-meteo.com/v1/search?{urlencode(params)}"
+    return fetch_upstream_json(url)
+
+
+@app.get('/api/weather/reverse')
+def get_weather_reverse(
+    latitude: float,
+    longitude: float,
+    language: str = Query('ko'),
+    format: str = Query('json'),
+) -> Any:
+    params = {
+        'latitude': str(latitude),
+        'longitude': str(longitude),
+        'language': language,
+        'format': format,
+    }
+    url = f"https://geocoding-api.open-meteo.com/v1/reverse?{urlencode(params)}"
+    return fetch_upstream_json(url)
+
+
 @app.post('/api/uploads/images', response_model=GridImage)
-def upload_image(date: str, file: UploadFile = File(...)) -> GridImage:
+def upload_image(request: Request, date: str, file: UploadFile = File(...)) -> GridImage:
     date_key = parse_iso_date(date)
     ext = Path(file.filename or '').suffix.lower()
     if ext not in {'.png', '.jpg', '.jpeg', '.webp', '.gif'}:
@@ -299,7 +383,7 @@ def upload_image(date: str, file: UploadFile = File(...)) -> GridImage:
             (image_id, date_key, filename, width, height, utc_now_iso()),
         )
 
-    base_url = os.getenv('PUBLIC_BASE_URL', '')
+    base_url = resolve_public_base_url(request)
     url_path = f'/uploads/{filename}'
     url = f'{base_url}{url_path}' if base_url else url_path
     return GridImage(id=image_id, url=url, width=width, height=height)

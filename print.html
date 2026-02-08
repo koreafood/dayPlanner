@@ -24,8 +24,7 @@
   @media print {
     body { background: #fff; }
     .page { margin: 0; box-shadow: none; }
-  }
-  .section {
+  }  .section {
     border: 1px solid #e6e6e6;
     padding: 4mm;
     display: flex;
@@ -721,13 +720,14 @@
     var loc = readSavedLocation();
     var daily = 'weathercode,temperature_2m_max,temperature_2m_min,precipitation_probability_max';
     var tz = loc.timezone || 'auto';
-    var url = 'https://api.open-meteo.com/v1/forecast'
-      + '?latitude=' + encodeURIComponent(loc.latitude)
-      + '&longitude=' + encodeURIComponent(loc.longitude)
-      + '&daily=' + encodeURIComponent(daily)
-      + '&timezone=' + encodeURIComponent(tz)
-      + '&start_date=' + encodeURIComponent(dateStr)
-      + '&end_date=' + encodeURIComponent(dateStr);
+    var params = new URLSearchParams();
+    params.set('latitude', String(loc.latitude));
+    params.set('longitude', String(loc.longitude));
+    params.set('daily', daily);
+    params.set('timezone', tz);
+    params.set('start_date', dateStr);
+    params.set('end_date', dateStr);
+    var url = '/api/weather/forecast?' + params.toString();
 
     return fetch(url)
       .then(function(r) { if (!r.ok) throw new Error(''); return r.json(); })

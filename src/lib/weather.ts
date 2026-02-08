@@ -58,7 +58,13 @@ export function writeLocation(loc: WeatherLocation) {
 export async function searchLocations(query: string): Promise<WeatherLocation[]> {
   const q = query.trim()
   if (!q) return []
-  const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q)}&count=8&language=ko&format=json`
+  const params = new URLSearchParams({
+    name: q,
+    count: '8',
+    language: 'ko',
+    format: 'json',
+  })
+  const url = `/api/weather/geocode?${params.toString()}`
   const r = await fetch(url)
   if (!r.ok) throw new Error('지역 검색 실패')
   const data = (await r.json()) as {
@@ -86,7 +92,13 @@ export async function searchLocations(query: string): Promise<WeatherLocation[]>
 }
 
 export async function reverseGeocode(latitude: number, longitude: number): Promise<WeatherLocation | null> {
-  const url = `https://geocoding-api.open-meteo.com/v1/reverse?latitude=${encodeURIComponent(latitude)}&longitude=${encodeURIComponent(longitude)}&language=ko&format=json`
+  const params = new URLSearchParams({
+    latitude: String(latitude),
+    longitude: String(longitude),
+    language: 'ko',
+    format: 'json',
+  })
+  const url = `/api/weather/reverse?${params.toString()}`
   const r = await fetch(url)
   if (!r.ok) return null
   const data = (await r.json()) as {
@@ -150,7 +162,14 @@ function toDaily(data: {
 export async function fetchTodayTomorrow(loc: WeatherLocation): Promise<WeatherSummary> {
   const daily = 'weathercode,temperature_2m_max,temperature_2m_min,precipitation_probability_max'
   const timezone = loc.timezone ? loc.timezone : 'auto'
-  const url = `https://api.open-meteo.com/v1/forecast?latitude=${encodeURIComponent(loc.latitude)}&longitude=${encodeURIComponent(loc.longitude)}&daily=${encodeURIComponent(daily)}&timezone=${encodeURIComponent(timezone)}&forecast_days=2`
+  const params = new URLSearchParams({
+    latitude: String(loc.latitude),
+    longitude: String(loc.longitude),
+    daily,
+    timezone,
+    forecast_days: '2',
+  })
+  const url = `/api/weather/forecast?${params.toString()}`
   const r = await fetch(url)
   if (!r.ok) throw new Error('날씨 불러오기 실패')
   const data = (await r.json()) as {
@@ -181,7 +200,15 @@ export async function fetchTodayTomorrow(loc: WeatherLocation): Promise<WeatherS
 export async function fetchDailyForDate(loc: WeatherLocation, date: string): Promise<DailyWeather | null> {
   const daily = 'weathercode,temperature_2m_max,temperature_2m_min,precipitation_probability_max'
   const timezone = loc.timezone ? loc.timezone : 'auto'
-  const url = `https://api.open-meteo.com/v1/forecast?latitude=${encodeURIComponent(loc.latitude)}&longitude=${encodeURIComponent(loc.longitude)}&daily=${encodeURIComponent(daily)}&timezone=${encodeURIComponent(timezone)}&start_date=${encodeURIComponent(date)}&end_date=${encodeURIComponent(date)}`
+  const params = new URLSearchParams({
+    latitude: String(loc.latitude),
+    longitude: String(loc.longitude),
+    daily,
+    timezone,
+    start_date: date,
+    end_date: date,
+  })
+  const url = `/api/weather/forecast?${params.toString()}`
   const r = await fetch(url)
   if (!r.ok) return null
   const data = (await r.json()) as {
@@ -196,4 +223,3 @@ export async function fetchDailyForDate(loc: WeatherLocation, date: string): Pro
   const list = toDaily(data.daily ?? {})
   return list[0] ?? null
 }
-
